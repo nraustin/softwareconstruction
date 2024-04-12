@@ -26,21 +26,27 @@ The Amazon Elastic Compute Cloud (EC2) service provides all of the functionality
       ![Inbound rules](inboundRules.png)
    1. Save the security group.
 
-1. Launch a server instance. Navigate back to the EC2 dashboard
+1. Launch a server instance.
 
+   1. Navigate back to the EC2 dashboard.
    1. Select the option to `Launch instance`.
    1. Give your instance a name like `cs240-chessserver`.
    1. Chose AWS linux for your Amazon Machine Image (AMI).
       ![Amazon Machine Image](ami.png)
-   1. Specify the security group that opens port 8080, 22.
    1. Set the instance type of t2.micro. If you are eligible for the free tier then you will not be billing for the first 12 months of your first t2.micro instance.
+
       ![Instance type](instanceType.png)
-   1. In the Key pair input select an existing key pair if you have created one previously, or select the `Create new key pair` option. Make sure you save the key pair to a safe place in your development environment. You will need this to connect to your server, and you do not want to let anyone else have access to it. Do not check the key pair into GitHub or any other publicly available location.
+
+   1. In the Key pair input select an existing key pair if you have created one previously, or select the `Create new key pair` option. Make sure you save the key pair to a safe place in your development environment. You will need this to connect to your server, and you do not want to let anyone else have access to it. Do not check the key pair into GitHub or any other publicly available location.<br/><br/>
+   **Note:** You may need to change the file permissions to protect your key file before you can use it to access your AWS instance. If using a Mac or Linux, use the command ```chmod 600 <path to your file>```. 
    1. In the `Network settings` you specify how the world can access your server. Choose the option to `Select existing security group` and pick the security group you created previously.
+
       ![Security group configuration](securityGroup.png)
 
    1. Scroll past the remaining options and press `Launch instance`. This will display a message saying that the instance has been successfully launched. You can then navigate to the `Instances` view and click on your newly created server to see all of the details.
+
       ![EC2 Instance settings](ec2InstanceSettings.png)
+
       You will want to copy the `Public IPv4 address` so that you can remotely connect to the server using a secure shell (SSH) and also access your server from the browser in order to play a game of chess.
 
 ## Install MySQL
@@ -79,6 +85,7 @@ ALTER USER 'root'@'localhost' IDENTIFIED BY '1Really~Complicated!!';
 UNINSTALL COMPONENT 'file://component_validate_password';
 ALTER USER 'root'@'localhost' IDENTIFIED BY 'monkeypie';
 ```
+**Note:** Make sure your password matches the root password specified in the db.properties file in your chess client.
 
 ## Install Java
 
@@ -145,16 +152,44 @@ Now you are ready to start up the server.
 java -jar server.jar
 ```
 
-This should output that the server is successfully running on the assigned port. Now you should be able to open up a browser on any computer in the world and see the web interface for your chess server.
+This should output that the server is successfully running on the assigned port. Now you should be able to open up a browser on any computer in the world and see the web interface for your chess server. When you open your browser, put the public IP address and port number of your EC2 Instance. This should be something like `http://youripaddresshere:8080`.
 
 ![Chess web interface](chessServerWebInterface.png)
 
-You can then click the link that you created to download the client. Note that you may need to tell your browser to load your web page even though it is not secure, as well as download the jar file.
+You can then click the link that you created to download the client. Note that you may need to tell your browser to load your web page even though it is not secure, as well as specifying that you want to download the jar file.
 
 ![Ignore security warnings](ignoreSecurityWarnings.png)
 
 Now you can use the Java runtime to run your chess client. Make sure you provide the ip address and port number as parameters.
 
+```sh
+java -jar client.jar youripaddress:8080
+```
+
 ![Playing chess](playingChess.png)
 
-Have fun!
+## Make your chess server start whenever you start the AWS instance
+
+Invoking your chess server from ssh will require you to keep the ssh terminal open. You can make your chess server start automatically every time your AWS instance is started by following these instructions:
+
+1. SSH into your server as described above
+2. Create and open a service description file: ```sudo nano /etc/systemd/system/chess_server.service```
+3. Enter and save the following in the Nano code editor window:
+```[Unit]
+Description=Chess Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=java -jar /home/ec2-user/server.jar 8080
+
+[Install]
+WantedBy=multi-user.target
+sudo systemctl enable chess_server
+```
+4. Enable the chess server service: ```sudo systemctl enable chess_server```
+5. Start the chess server service: ```sudo systemctl start chess_server```
+6. Check the status of the chess server service: ```sudo systemctl status chess_server```
+7. To confirm that the service starts whenever the AWS instance is started, stop and restart the AWS instance from the AWS console or use this command: ```sudo reboot```
+
+Have fun! You have just taken the first step in becoming the world's best chess server.
